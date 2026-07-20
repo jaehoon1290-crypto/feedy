@@ -1,0 +1,4 @@
+import { Router } from 'express'; import { z } from 'zod'; import { User } from './user.model.js'; import { auth, type AuthRequest, asyncHandler } from '../../shared/http.js';
+const router = Router(); router.use(auth);
+router.get('/me', asyncHandler(async (req: AuthRequest, res) => { const user = await User.findById(req.userId).select('name email addresses'); res.json({ data: user }); }));
+router.post('/me/addresses', asyncHandler(async (req: AuthRequest, res) => { const body = z.object({ label: z.string(), address: z.string(), detail: z.string().optional(), latitude: z.number().optional(), longitude: z.number().optional() }).parse(req.body); const user = await User.findById(req.userId); if (!user) return res.sendStatus(404); if (!user.addresses.length) user.addresses.push({ ...body, isDefault: true }); else user.addresses.push(body); await user.save(); res.status(201).json({ data: user.addresses.at(-1) }); })); export default router;

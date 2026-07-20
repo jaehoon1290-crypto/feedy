@@ -1,0 +1,11 @@
+{
+  "name": "delivery-mvp",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w @delivery/api\" \"npm run dev -w @delivery/web\" \"npm run dev -w @feedy/store\"",
+    "build": "npm run build -w @delivery/contracts && npm run build -w @delivery/api && npm run build -w @delivery/web && npm run build -w @feedy/store",
+    "seed": "npm run seed -w @delivery/api"
+  },
+  "devDependencies": { "concurrently": "^9.1.2" }
+}

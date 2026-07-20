@@ -1,0 +1,3 @@
+import { Link } from 'react-router-dom'; import { useCart } from './state/cart'; export const won = (n: number) => `${n.toLocaleString()}원`;
+export function Header() { const { items } = useCart(); const loggedIn = Boolean(localStorage.getItem('delivery_token')); return <header><Link className="brand" to="/">FEEDY</Link><nav><Link to="/favorites">즐겨찾기</Link><Link to="/orders">주문내역</Link><Link to="/settings">{loggedIn ? '마이페이지' : '설정'}</Link>{!loggedIn && <Link to="/login">로그인</Link>}<Link to="/cart">장바구니 {items.reduce((n, x) => n + x.quantity, 0)}</Link></nav></header> }
+export function Loading() { return <p className="muted">불러오는 중…</p> }

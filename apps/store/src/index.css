@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@layer base { body { @apply m-0 bg-white text-zinc-950 antialiased; letter-spacing: -.014em; background: radial-gradient(circle at 50% -35%,#f1f1f1 0,transparent 42%),#fff; } button, input, select { font: inherit; } button { @apply transition duration-150 ease-out active:scale-[.975] disabled:cursor-not-allowed disabled:opacity-50; } h1 { @apply tracking-[-.055em]; } }
+@layer components { .field { @apply w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#ea5436] focus:ring-4 focus:ring-[#ea5436]/10; } .primary { @apply w-full rounded-xl bg-zinc-950 px-4 py-3.5 text-sm font-semibold text-white shadow-[0_9px_18px_rgba(24,24,27,.15)] transition hover:bg-zinc-800 hover:shadow-[0_11px_22px_rgba(24,24,27,.21)] disabled:bg-zinc-200; } }
+
+/* Shared FEEDY Store surface rhythm */
+header { backdrop-filter: blur(12px); } header strong:first-child { letter-spacing: -.05em; } header strong:first-child:before { content:''; display:inline-block; width:15px; height:15px; margin-right:8px; vertical-align:-2px; border-radius:5px; background:#18181b; box-shadow:inset 0 0 0 3px #fff, inset 0 0 0 4px #18181b; } section.rounded-2xl, article.rounded-2xl { box-shadow: 0 10px 28px rgba(24,24,27,.035); } .fixed.bottom-0 { box-shadow:0 -8px 28px rgba(24,24,27,.04); } @media (max-width:640px) { h1 { font-size:1.75rem; } }

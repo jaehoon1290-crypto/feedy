@@ -1,0 +1,23 @@
+import { randomUUID } from 'node:crypto';
+import { Router } from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { z } from 'zod';
+import { env } from '../../config/env.js';
+import { asyncHandler } from '../../shared/http.js';
+import { audit } from '../audit/audit.service.js';
+import { User } from '../users/user.model.js';
+import { RefreshToken } from './refresh-token.model.js';
+
+const router = Router();
+const credentials = z.object({ email: z.string().email(), password: z.string().min(8), name: z.string().min(1).optional(), role: z.enum(['CUSTOMER', 'OWNER']).optional() });
+const refreshInput = z.object({ refreshToken: z.string().min(1) });
+const accessFor = (user: { id?: string; _id?: unknown; role: string }) => jwt.sign({ role: user.role }, env.jwtSecret, { subject: user.id ?? String(user._id), expiresIn: '15m' });
+const refreshFor = async (userId: string) => { const tokenId = randomUUID(); const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14); await RefreshToken.create({ userId, tokenId, expiresAt }); return jwt.sign({ jti: tokenId }, env.jwtRefreshSecret, { subject: userId, expiresIn: '14d' }); };
+const session = async (user: { id?: string; _id?: unknown; role: string }) => { const id = user.id ?? String(user._id); return { accessToken: accessFor(user), refreshToken: await refreshFor(id), user: { id, role: user.role } }; };
+router.post('/signup', asyncHandler(async (req, res) => { const body = credentials.extend({ name: z.string().min(1) }).parse(req.body); if (await User.exists({ email: body.email })) return res.status(409).json({ message: '이미 가입된 이메일입니다.' }); const user = await User.create({ name: body.name, email: body.email, role: body.role ?? 'CUSTOMER', passwordHash: await bcrypt.hash(body.password, 12) }); await audit(req, 'AUTH_SIGNUP', user.id, 'User', user.id); res.status(201).json({ data: await session(user) }); }));
+router.post('/login', asyncHandler(async (req, res) => { const body = credentials.parse(req.body); const user = await User.findOne({ email: body.email }); if (!user || !(await bcrypt.compare(body.password, user.passwordHash))) return res.status(401).json({ message: '이메일 또는 비밀번호를 확인해 주세요.' }); await RefreshToken.updateMany({ userId: user.id, revokedAt: null }, { revokedAt: new Date() }); await audit(req, 'AUTH_LOGIN', user.id, 'User', user.id); res.json({ data: await session(user) }); }));
+router.post('/refresh', asyncHandler(async (req, res) => { const { refreshToken } = refreshInput.parse(req.body); let payload: jwt.JwtPayload; try { payload = jwt.verify(refreshToken, env.jwtRefreshSecret) as jwt.JwtPayload; } catch { return res.status(401).json({ message: 'Refresh Token이 만료되었거나 유효하지 않습니다.' }); } const token = await RefreshToken.findOne({ tokenId: payload.jti, userId: payload.sub, revokedAt: null, expiresAt: { $gt: new Date() } }); if (!token) return res.status(401).json({ message: 'Refresh Token이 폐기되었습니다.' }); token.revokedAt = new Date(); const user = await User.findById(payload.sub); if (!user) return res.status(401).json({ message: '사용자를 찾을 수 없습니다.' }); const next = await session(user); token.replacedBy = (jwt.decode(next.refreshToken) as jwt.JwtPayload).jti; await token.save(); res.json({ data: next }); }));
+router.post('/logout', asyncHandler(async (req, res) => { const { refreshToken } = refreshInput.parse(req.body); const payload = jwt.decode(refreshToken) as jwt.JwtPayload | null; if (payload?.jti) await RefreshToken.updateOne({ tokenId: payload.jti }, { revokedAt: new Date() }); await audit(req, 'AUTH_LOGOUT', payload?.sub as string | undefined); res.status(204).send(); }));
+router.post('/logout-all', asyncHandler(async (req, res) => { const { refreshToken } = refreshInput.parse(req.body); const payload = jwt.verify(refreshToken, env.jwtRefreshSecret) as jwt.JwtPayload; await RefreshToken.updateMany({ userId: payload.sub, revokedAt: null }, { revokedAt: new Date() }); await audit(req, 'AUTH_LOGOUT_ALL', payload.sub as string); res.status(204).send(); }));
+export default router;
