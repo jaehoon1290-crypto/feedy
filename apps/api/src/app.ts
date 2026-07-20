@@ -1,2 +1,85 @@
-import express from 'express'; import cors from 'cors'; import helmet from 'helmet'; import { rateLimit } from 'express-rate-limit'; import authRouter from './modules/auth/auth.router.js'; import userRouter from './modules/users/user.router.js'; import storeRouter from './modules/stores/store.router.js'; import orderRouter from './modules/orders/order.router.js'; import favoriteRouter from './modules/favorites/favorite.router.js'; import merchantRouter from './modules/merchant/merchant.router.js'; import adminRouter from './modules/admin/admin.router.js'; import settingsRouter from './modules/settings/settings.router.js'; import { env } from './config/env.js';
-export const app = express(); app.disable('x-powered-by'); app.use(helmet({ crossOriginResourcePolicy: false })); app.use(cors({ origin: env.clientUrl, methods: ['GET','POST','PATCH','PUT','DELETE'], allowedHeaders: ['Content-Type','Authorization'] })); app.use(rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: 'draft-7', legacyHeaders: false })); app.use(express.json({ limit: '100kb' })); app.get('/api/v1/health', (_req, res) => res.json({ data: { status: 'ok', environment: env.nodeEnv } })); app.use('/api/v1/auth', rateLimit({ windowMs: 15 * 60_000, limit: 10, standardHeaders: 'draft-7', legacyHeaders: false }), authRouter); app.use('/api/v1/users', userRouter); app.use('/api/v1', storeRouter); app.use('/api/v1/orders', orderRouter); app.use('/api/v1/favorites', favoriteRouter); app.use('/api/v1/merchant', merchantRouter); app.use('/api/v1/admin', adminRouter); app.use('/api/v1/settings', settingsRouter); app.use((err: any, _req: any, res: any, _next: any) => { console.error(err); res.status(err.name === 'ZodError' ? 400 : 500).json({ message: err.message ?? '서버 오류가 발생했습니다.' }); });
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import { rateLimit } from 'express-rate-limit';
+
+import authRouter from './modules/auth/auth.router.js';
+import userRouter from './modules/users/user.router.js';
+import storeRouter from './modules/stores/store.router.js';
+import orderRouter from './modules/orders/order.router.js';
+import favoriteRouter from './modules/favorites/favorite.router.js';
+import merchantRouter from './modules/merchant/merchant.router.js';
+import adminRouter from './modules/admin/admin.router.js';
+import settingsRouter from './modules/settings/settings.router.js';
+import { env } from './config/env.js';
+
+const allowedOrigins = [
+  'https://feedy-web-three.vercel.app',
+  'https://feedy-store-amber.vercel.app',
+];
+
+export const app = express();
+
+app.disable('x-powered-by');
+
+app.use(
+  helmet({
+    crossOriginResourcePolicy: false,
+  })
+);
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  })
+);
+
+app.use(
+  rateLimit({
+    windowMs: 60_000,
+    limit: 120,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+  })
+);
+
+app.use(express.json({ limit: '100kb' }));
+
+app.get('/api/v1/health', (_req, res) =>
+  res.json({
+    data: {
+      status: 'ok',
+      environment: env.nodeEnv,
+    },
+  })
+);
+
+app.use(
+  '/api/v1/auth',
+  rateLimit({
+    windowMs: 15 * 60_000,
+    limit: 10,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+  }),
+  authRouter
+);
+
+app.use('/api/v1/users', userRouter);
+app.use('/api/v1', storeRouter);
+app.use('/api/v1/orders', orderRouter);
+app.use('/api/v1/favorites', favoriteRouter);
+app.use('/api/v1/merchant', merchantRouter);
+app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/settings', settingsRouter);
+
+app.use((err: any, _req: any, res: any, _next: any) => {
+  console.error(err);
+
+  res.status(err.name === 'ZodError' ? 400 : 500).json({
+    message: err.message ?? '서버 오류가 발생했습니다.',
+  });
+});
